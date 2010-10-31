@@ -5,48 +5,68 @@
 (function($){  
   $.fn.HTMLOutline = function() {  
 
+    // Whether this item is active or not.
     var activeItem = undefined;
 
+    // Whether the modifier key is currently depressed.
     var modifierKeyIsDown = false;
+
+    // Whether keybaord listening is currently active.
+    var keyboardListening = false;
+
+    // This is an event responder that responds to all events.
+    var eventResponder = function() {}
 
     /**
      * Create our abstract (as far as js will allow) item handler.
      *
      * All elements in an outline are treated equally (each should be a list element which may or may not contain other list elements)
      */
-    var item = function() {}
+    var util = function() {}
 
     /**
      * Create our abstract (as far as js will allow) item handler.
      */
-    item.moveUp = function(current) {
+    util.moveUp = function(current) {
       current.prev().before(current);
     }
 
     /**
      * Create our abstract (as far as js will allow) item handler.
      */
-    item.moveDown = function(current) {
+    util.moveDown = function(current) {
       current.next().after(current);
     }
 
     /**
      * Create our abstract (as far as js will allow) item handler.
      */
-    item.makeChild = function(current) {
+    util.makeChild = function(current) {
       previous = current.prev();
-      previous.html(previous.html() + liify(current));
+      if (!hasUl(previous)) {
+        // TODO: Add a ul.
+      }
+      $('ul', previous)
+        .children()
+        .last()
+        .after(current);
     }
 
-    var liify = function(thing) {
+    /**
+     * Create our abstract (as far as js will allow) item handler.
+     */
+    util.makeSibling = function(current) {
+      // TODO: what if this is a top level item?
+      $(current)
+        .parent()
+        .parent()
+        .after(current);
+    }
+
+    util.liify = function(thing) {
       thing.wrap('li').wrap('ul');
       return thing.parent().parent();
     }
-
-    // Whether keybaord listening is currently active.
-    var keyboardListening = false;
-
-    var eventResponder = function() {}
 
     /**
      * The function serves as an event dispatcher which calls the appropriate callbacks
@@ -57,21 +77,23 @@
           switch (event.keyCode) {
             case options.keyCodes.moveDown:
               event.preventDefault();
-              item.moveDown(activeItem);
+              util.moveDown(activeItem);
               break;
             case options.keyCodes.moveUp:
               event.preventDefault();
-              item.moveUp(activeItem);
+              util.moveUp(activeItem);
               break;
             case options.keyCodes.makeChild:
               event.preventDefault();
-              item.makeChild(activeItem);
+              util.makeChild(activeItem);
               break;
             case options.keyCodes.makeSibling:
               event.preventDefault();
+              util.makeSibling(activeItem);
               break;
           }
         }
+        // Non-modifier key commands.
         else {
           switch (event.keyCode) {
             case options.keyCodes.newElement:
@@ -108,13 +130,44 @@
       return form;
     }
 
+    var hasUl = function(item) {
+      if ($('ul', item).length > 0) {
+        return true;
+      }
+      return false;
+    }
+
+    var wrapElementContents = function(li) {
+      if (hasUl(li)) {
+        $(li).wrapInner('<div class="' + options.outlinerLiWrapperClass + '"></div>');
+        // This is the only clean way to wrap Element contents
+        $('ul', li).after($(options.outlinerLiWrapperClass, li));
+      }
+      else {
+        $(li).wrapInner('<div class="' + options.outlinerLiWrapperClass + '"></div>');
+      }
+    }
+
+    /**
+     * TODO: get this actually working!
+     */
+    var unwrapElementContents = function(li) {
+      var instance = $('.' + options.outlinerLiWrapperClass, li);
+      var text = instance.html();
+      instance.remove();
+      $(li).html(text);
+    }
+
     var intialize = function(outline) {
+      $.each($('li', outline), function(index, value) {
+        wrapElementContents(value);
+      });
       // Activate keyboard listening.
       startKeyboardListeners();
       // Set the first element in the outline to the active element.
       activeItem = outline.children().first();
       activeItem.addClass(options.activeClass);
-      activeItem.html(getForm(activeItem.html()));
+      activeItem.html(formify($('.' + options.outlinerLiWrapperClass, activeItem).html()));
     }
 
     var uninitialize = function(outline) {
@@ -122,6 +175,9 @@
       activeItem.removeClass(options.activeClass);
       activeItem.html(deformify(activeItem));
       activeItem = undefined;
+      $.each($('li', outline), function(index, value) {
+        unwrapElementContents(value);
+      });
     }
 
     /**
@@ -130,6 +186,8 @@
     var defaults = {
       // The class to set the active element to
       activeClass: 'html-outliner-active',
+      // li contents wrapper class
+      outlinerLiWrapperClass: 'html-outliner-item',
       // A callback to trigger every time the outline is modified
       updateCallback: 'someCallback',
       // A set of keycodes to map to operations
@@ -144,15 +202,15 @@
         // The up arrow
         moveUp: 38,
         // The right arrow
-        makeChild: 37,
+        makeChild: 39,
         // The left arrow
-        makeSibling: 39, 
+        makeSibling: 37, 
         // The escape key
         quit: 27,
       },
       callBacks: {
-        moveUp: item.moveUp,
-        moveDown: item.moveDown,
+        moveUp: util.moveUp,
+        moveDown: util.moveDown,
         eventResponder: eventResponder,
         quit: uninitialize,
       }
