@@ -43,10 +43,10 @@
      */
     util.makeChild = function(current) {
       previous = current.prev();
-      if (!hasUl(previous)) {
-        // TODO: Add a ul.
+      if (!hasList(previous)) {
+        // TODO: Add a list.
       }
-      $('ul', previous)
+      $(options.listType, previous)
         .children()
         .last()
         .after(current);
@@ -64,7 +64,7 @@
     }
 
     util.liify = function(thing) {
-      thing.wrap('li').wrap('ul');
+      thing.wrap('li').wrap(options.listType);
       return thing.parent().parent();
     }
 
@@ -130,18 +130,18 @@
       return form;
     }
 
-    var hasUl = function(item) {
-      if ($('ul', item).length > 0) {
+    var hasList = function(item) {
+      if ($(options.listType, item).length > 0) {
         return true;
       }
       return false;
     }
 
     var wrapElementContents = function(li) {
-      if (hasUl(li)) {
+      if (hasList(li)) {
         $(li).wrapInner('<div class="' + options.outlinerLiWrapperClass + '"></div>');
         // This is the only clean way to wrap Element contents
-        $('ul', li).after($(options.outlinerLiWrapperClass, li));
+        $('.' + options.outlinerLiWrapperClass, li).after($(options.listType, li));
       }
       else {
         $(li).wrapInner('<div class="' + options.outlinerLiWrapperClass + '"></div>');
@@ -184,6 +184,8 @@
      * Populate our defaults.
      */
     var defaults = {
+      // List type (acceptable types are ul and ol, all must use that type)
+      listType: 'ul',
       // The class to set the active element to
       activeClass: 'html-outliner-active',
       // li contents wrapper class
