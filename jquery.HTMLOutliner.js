@@ -1,12 +1,17 @@
 /**
  * @file
  *   This jQuery plugin provides a pluggable system for manipulating HTML outlines.
+ *
+ * TODO: Add pluggable callbacks.
  */
 (function($){  
   $.fn.HTMLOutline = function() {  
 
-    // Whether this item is active or not.
-    var activeItem = undefined;
+    // The outline that we have HTMLOutline-ified.
+    var outline = undefined;
+
+    // The current selected item.
+    var activeItem = null;
 
     // Whether the modifier key is currently depressed.
     var modifierKeyIsDown = false;
@@ -45,27 +50,82 @@
       previous = current.prev();
       if (!hasList(previous)) {
         // TODO: Add a list.
+        var list = '<' + options.listType + '></' + options.listType + '>';
+        $(previous).append(list);
       }
-      $(options.listType, previous)
-        .children()
-        .last()
-        .after(current);
+      $(options.listType, previous).first().append(current);
     }
 
     /**
      * Create our abstract (as far as js will allow) item handler.
      */
     util.makeSibling = function(current) {
-      // TODO: what if this is a top level item?
-      $(current)
-        .parent()
-        .parent()
-        .after(current);
+      var directParent = current.parent()
+      if (directParent.data('HTMLOutlinerEnabled') !== true) {
+        directParent.parent().after(current);
+      }
     }
 
+    /**
+     *
+     */
+    util.newElement = function(current) {
+      current.add('.' + options.activeClass);
+      //this.selectNext(current);
+    }
+
+    /**
+     *
+     */
     util.liify = function(thing) {
       thing.wrap('li').wrap(options.listType);
       return thing.parent().parent();
+    }
+    
+    /**
+     *
+     */
+    util.activate = function(current) {
+      activeItem = current;
+      current = $(current);
+      current.addClass(options.activeClass);
+      formify(current);
+    }
+
+    /**
+     *
+     */
+    util.deactivate = function(current) {
+      current.removeClass(options.activeClass);
+      deformify(current);
+    }
+
+    /**
+     *
+     */
+    util.selectNext = function(current) {
+      this.deactivate(current);
+      if (hasList(current)) {
+        this.activate($(options.listType, current).first());
+      }
+      else {
+        this.activate(current.next().first());
+      }
+    }
+
+    /**
+     *
+     */
+    util.selectPrev = function(current) {
+      // If the above item has a list, move to the end of it.
+      if (hasList(current.prev())) {
+        this.activate(current.prev().children().last());
+        this.deactivate(current);
+      }
+      else {
+        this.activate(current.prev());
+        this.deactivate(current);
+      }
     }
 
     /**
@@ -96,12 +156,21 @@
         // Non-modifier key commands.
         else {
           switch (event.keyCode) {
+            case options.keyCodes.moveDown:
+              event.preventDefault();
+              util.selectNext($(activeItem));
+              break;
+            case options.keyCodes.moveUp:
+              event.preventDefault();
+              util.selectPrev($(activeItem));
+              break;
             case options.keyCodes.newElement:
               event.preventDefault();
+              util.newElement($(activeItem));
               break;
             case options.keyCodes.quit:
               event.preventDefault();
-              uninitialize();
+              uninitialize(outline);
               break;
           }
         }
@@ -116,13 +185,21 @@
       keyboardListening = false;
     }
 
-    var formify = function(text) {
-      // TODO: Add plugable callback
-      return getForm(text);
+    var formify = function(item) {
+      var forchange = $('.' + options.outlinerLiWrapperClass, item).first();
+      var text = forchange.html()
+      forchange.html(getForm(text));
     }
 
     var deformify = function(current) {
-      return $('#HTMLOutliner-active', activeItem).val();
+      var formElement = $('#HTMLOutliner-active', current);
+      var list = '';
+      if (hasList(current)) {
+        list = $(options.listType, current);
+      }
+      current.html('<div class="' + options.outlinerLiWrapperClass + '">' + formElement.val() + '</div>');
+      $('.' + options.outlinerLiWrapperClass, current).after(list);
+      formElement.remove();
     }
 
     var getForm = function(text) {
@@ -151,30 +228,33 @@
     /**
      * TODO: get this actually working!
      */
-    var unwrapElementContents = function(li) {
-      var instance = $('.' + options.outlinerLiWrapperClass, li);
-      var text = instance.html();
-      instance.remove();
-      $(li).html(text);
+    var unwrapElementContents = function(current) {
+      var wrapper = $('.' + options.outlinerLiWrapperClass, current);
+      var text = wrapper.html();
+      wrapper.before(text);
+      wrapper.remove();
     }
 
-    var intialize = function(outline) {
-      $.each($('li', outline), function(index, value) {
-        wrapElementContents(value);
-      });
-      // Activate keyboard listening.
-      startKeyboardListeners();
-      // Set the first element in the outline to the active element.
-      activeItem = outline.children().first();
-      activeItem.addClass(options.activeClass);
-      activeItem.html(formify($('.' + options.outlinerLiWrapperClass, activeItem).html()));
+    var initialize = function(outline) {
+      if (!outline.data('HTMLOutlinerEnabled')) {
+        outline.data('HTMLOutlinerEnabled', true);
+        $.each($('li', outline), function(index, value) {
+          wrapElementContents(value);
+        });
+        // Activate keyboard listening.
+        startKeyboardListeners();
+        // Set the first element in the outline to the active element.
+        activeItem = outline.children().first();
+        util.activate(activeItem);
+      }
     }
 
     var uninitialize = function(outline) {
+      outline.data('HTMLOutlinerEnabled', false);
       stopKeyboardListeners();
-      activeItem.removeClass(options.activeClass);
-      activeItem.html(deformify(activeItem));
+      util.deactivate(activeItem);
       activeItem = undefined;
+      // TODO: this is busted?
       $.each($('li', outline), function(index, value) {
         unwrapElementContents(value);
       });
@@ -216,7 +296,7 @@
         eventResponder: eventResponder,
         quit: uninitialize,
       }
-    };  
+    };
     var options = $.extend(true, defaults, options);
 
     /**
@@ -225,7 +305,7 @@
     return this.each(function() {  
       outline = $(this);
       outline.click(function(){
-        intialize(outline);
+        initialize(outline);
       });
       // Respond to keyboard key presses.
       $(window).keydown(function(e) {
@@ -242,6 +322,7 @@
           modifierKeyIsDown=false;
         }
       });
+      initialize(outline);
     });
   };  
 })(jQuery);  
