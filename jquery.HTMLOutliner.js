@@ -4,6 +4,12 @@
  *
  * TODO: Add pluggable callbacks.
  */
+ /*
+   TODO list:
+     - allow complex modifiers
+     - provide real callbacks
+     - debug.
+ */
 (function($){  
   $.fn.HTMLOutline = function() {  
 
@@ -197,6 +203,7 @@
       if (hasList(current)) {
         list = $(options.listType, current);
       }
+      // This line doesn't have the right value in the demo on the sub items inside second item
       current.html('<div class="' + options.outlinerLiWrapperClass + '">' + formElement.val() + '</div>');
       $('.' + options.outlinerLiWrapperClass, current).after(list);
       formElement.remove();
@@ -274,8 +281,8 @@
       updateCallback: 'someCallback',
       // A set of keycodes to map to operations
       keyCodes: {
-        // The ctrl key
-        modifier: 17,
+        // The alt key
+        modifier: 18,
         // The enter key
         newElement: 13,
         // Currently this is only the arrows, should require control?

@@ -1,3 +1,37 @@
+@charset "UTF-8";
+/* line 4, src/style.sass */
+body {
+  font-family: "Helveitca", sans-serif;
+  font-size: 1em;
+}
+
+/* line 8, src/style.sass */
 .html-outliner-active {
-  background-color: red;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #6699ff;
+  background: rgba(102, 153, 255, 0.5);
+  -moz-border-radius: 20px;
+  -webkit-border-radius: 20px;
+  -o-border-radius: 20px;
+  -ms-border-radius: 20px;
+  -khtml-border-radius: 20px;
+  border-radius: 20px;
+  width: 500px;
+}
+/* line 16, src/style.sass */
+.html-outliner-active input {
+  margin: 0;
+  padding: 0;
+  border: none;
+  -moz-border-radius: 30px;
+  -webkit-border-radius: 30px;
+  -o-border-radius: 30px;
+  -ms-border-radius: 30px;
+  -khtml-border-radius: 30px;
+  border-radius: 30px;
+  margin-left: 2px;
+  margin-right: 15px;
+  width: 95%;
+  display: inline;
 }
